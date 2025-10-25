@@ -101,3 +101,18 @@ Good pranks should be harmless, easy to clean up, and something everyone (includ
 
 
 Very constitutional! 
+
+
+### Tools and providers used
+
+
+Thank you to HuggingFace, OpenRouter for making it easy for curious people such as myself to try out stuff!
+
+Big shoutout to Anthropic for releasing everything so transparently, including the datasets. I didn't have to do
+much else besides cleaning things up. 
+
+
+### Post-processing
+
+I see lots of non-ASCII, unicode characters being generated in the LLM responses. Once the dataset is generated, I will
+clean all of them by converting to plain English characters for the RL phase to use properly
