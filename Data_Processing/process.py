@@ -26,7 +26,8 @@ def get_redteam_prompts():
 
 
 def get_principles():
-    principles = []
+    critiques = []
+    revisions = []
     EVALS_DIR = PARENT_DIR / "Data/prompts"
     principles_file = "CritiqueRevisionInstructions.json"
 
@@ -42,9 +43,10 @@ def get_principles():
             revision = revision_raw.replace(
                 '\n\nRevisionRequest:', '').replace('\n\nRevision:', '').strip()
 
-            principles.append((critique, revision))
+            critiques.append(critique)
+            revisions.append(revision)
 
-    return principles
+    return critiques, revisions
 
 
 def response_form(prompt):
