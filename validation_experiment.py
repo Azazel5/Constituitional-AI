@@ -31,7 +31,7 @@ for prompt in test_prompts:
     
     # Contextual selection
     contextual = selector.select_contextual(prompt, top_k=1)
-    print(f"Contextual principle: {contextual[0]['critique']}...")
+    print(f"Contextual principle: {contextual[0]}...")
     print(f"Similarity: {contextual[0]['similarity']:.3f}")
     
     # Random selection

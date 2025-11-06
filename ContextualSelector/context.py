@@ -36,7 +36,6 @@ class ContextualPrincipleSelector:
         for idx in top_indices:
             results.append({
                 'principle': self.principles[idx],
-                'critique': self.critiques[idx],
                 'similarity': float(similarities[idx])
             })
 

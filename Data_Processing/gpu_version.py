@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Constitutional AI Training Data Generation
 Optimized for HPC batch jobs with A100 GPU
@@ -6,22 +5,31 @@ Optimized for HPC batch jobs with A100 GPU
 
 import os
 import sys
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import json
-from pathlib import Path
-import random
-from datetime import datetime
 import time
+import json
+import torch
+import random
 import argparse
+from pathlib import Path
+from datetime import datetime
 
-from huggingface_hub import login
 from config import HF_TOKEN
+from huggingface_hub import login
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from ContextualSelector.context import ContextualPrincipleSelector
+from pdb import set_trace
 
 # ============================================
 # Setup
 # ============================================
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--model", required=True, help="The model name")
+parser.add_argument("--path", required=True, help="Model fullpath")
+parser.add_argument("--contextual", required=True, help="Are we picking principles contextually or not?")
+
+args = parser.parse_args()
 
 # Paths
 BASE_DIR = Path("CAI")
@@ -33,9 +41,9 @@ current_script_dir = Path(__file__).resolve().parent
 parent_dir = current_script_dir.parent
 
 
-CHECKPOINT_FILE = DATA_DIR / 'constitutional_training_data_mistral.jsonl'
-PROGRESS_FILE = DATA_DIR / 'progress_mistral.json'
-ERROR_LOG = DATA_DIR / 'errors_mistral.log'
+CHECKPOINT_FILE = DATA_DIR / f'constitutional_training_data_{args.model}.jsonl'
+PROGRESS_FILE = DATA_DIR / f'progress_{args.model}.json'
+ERROR_LOG = DATA_DIR / f'errors_{args.model}.log'
 
 # Create logs directory for batch outputs
 LOG_DIR = DATA_DIR / 'logs'
@@ -54,15 +62,15 @@ print()
 # GPU Check
 # ============================================
 
-print("Checking GPU...")
-if not torch.cuda.is_available():
-    print("❌ ERROR: No GPU available!")
-    sys.exit(1)
+# print("Checking GPU...")
+# if not torch.cuda.is_available():
+#     print("❌ ERROR: No GPU available!")
+#     sys.exit(1)
 
-print(f"✓ GPU Available: {torch.cuda.get_device_name(0)}")
-print(f"  VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
-print(f"  CUDA Version: {torch.version.cuda}")
-print()
+# print(f"✓ GPU Available: {torch.cuda.get_device_name(0)}")
+# print(f"  VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+# print(f"  CUDA Version: {torch.version.cuda}")
+# print()
 
 # ============================================
 # HuggingFace Authentication
@@ -90,7 +98,7 @@ print()
 print("Loading model...")
 start_time = time.time()
 
-MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+MODEL = args.path
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 tokenizer.pad_token = tokenizer.eos_token
 print("  ✓ Tokenizer loaded")
@@ -98,7 +106,8 @@ print("  ✓ Tokenizer loaded")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL,
     dtype=torch.float16,
-).to('cuda:0')
+)
+# ).to('cuda:0')
 
 print(f"  ✓ Model loaded in {time.time() - start_time:.1f}s")
 print(f"  Device: {model.device}")
@@ -198,6 +207,8 @@ revisions_list = data["revision_request"]
 
 # Create principle pairs
 principles = list(zip(critiques_list, revisions_list))
+selector = ContextualPrincipleSelector(principles)
+
 print(f"✓ Data loaded:")
 print(f"  Prompts: {len(harmful_prompts)}")
 print(f"  Principles: {len(principles)}")
@@ -256,8 +267,19 @@ for i in range(start_idx, len(harmful_prompts)):
         print(f"[{i+1}/{len(harmful_prompts)}] Processing...", end=' ', flush=True)
         
         # Select random principle
-        principle, revision = random.choice(principles)
+
+        print("Picking principles contextually: ", args.contextual)
+        if not args.contextual:
+            principle, revision = random.choice(principles)
+        
+        else:
+            contextual = selector.select_contextual(prompt, top_k=1)
+            principle, revision = contextual[0][0], contextual[0][1]
+            print(f"Contextual principle: {contextual[0]['critique']}...")
+            print(f"Similarity: {contextual[0]['similarity']:.3f}")
+        
         revision += " Do not provide meta-commentary; respond as the assistant would."
+        set_trace()
         
         # Step 1: Initial response
         initial_response = generate_response([{"role": "user", "content": prompt}])

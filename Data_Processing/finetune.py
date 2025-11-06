@@ -1,3 +1,5 @@
+# This file will to changed to use to finetune base language models using a response->critique->revise pipeline on red-team data
+
 import json
 from transformers import (
     AutoModelForCausalLM, 
