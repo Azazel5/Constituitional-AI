@@ -116,3 +116,19 @@ much else besides cleaning things up.
 
 I see lots of non-ASCII, unicode characters being generated in the LLM responses. Once the dataset is generated, I will
 clean all of them by converting to plain English characters for the RL phase to use properly
+
+
+## Running the program
+
+1. To do phase 1, the supervised bit, you can run something like
+```python -m Data_Processing.gpu_version --model="qwen" --path="Qwen/Qwen2.5-3B-Instruct" --contextual=True```
+
+from the main directory. Supply the --model parameter to output different result and logging files for all runs and give whatever model that is accessible from
+huggingface in the --path parameter. This will generate 979 response>critique>revision samples and put it into the Data_Processing/CAI/data directory. Make
+--contextual=True if you want to test contextual selection of principles compared to random selection as done in the original CAI paper
+
+To run as a batch job, go to the home directory and run 
+
+``` 
+sbatch generate_model_a100_scai.sh "cai_mistral_contextual" "mistral" "mistralai/Mistral-7B-Instruct-v0.3" True
+```

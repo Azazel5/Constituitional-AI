@@ -18,7 +18,6 @@ from huggingface_hub import login
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from ContextualSelector.context import ContextualPrincipleSelector
-from pdb import set_trace
 
 # ============================================
 # Setup
@@ -32,18 +31,17 @@ parser.add_argument("--contextual", required=True, help="Are we picking principl
 args = parser.parse_args()
 
 # Paths
-BASE_DIR = Path("CAI")
+current_script_dir = Path(__file__).resolve().parent
+parent_dir = current_script_dir.parent
+
+BASE_DIR = current_script_dir / "CAI" # <--- SOLUTION: Path is relative to the script
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-current_script_dir = Path(__file__).resolve().parent
-parent_dir = current_script_dir.parent
-
-
-CHECKPOINT_FILE = DATA_DIR / f'constitutional_training_data_{args.model}.jsonl'
-PROGRESS_FILE = DATA_DIR / f'progress_{args.model}.json'
-ERROR_LOG = DATA_DIR / f'errors_{args.model}.log'
+CHECKPOINT_FILE = DATA_DIR / f'constitutional_training_data_{args.model}-contextual({args.contextual}).jsonl'
+PROGRESS_FILE = DATA_DIR / f'progress_{args.model}-contextual({args.contextual}).json'
+ERROR_LOG = DATA_DIR / f'errors_{args.model}-contextual({args.contextual}).log'
 
 # Create logs directory for batch outputs
 LOG_DIR = DATA_DIR / 'logs'
@@ -62,15 +60,15 @@ print()
 # GPU Check
 # ============================================
 
-# print("Checking GPU...")
-# if not torch.cuda.is_available():
-#     print("❌ ERROR: No GPU available!")
-#     sys.exit(1)
+print("Checking GPU...")
+if not torch.cuda.is_available():
+    print("❌ ERROR: No GPU available!")
+    sys.exit(1)
 
-# print(f"✓ GPU Available: {torch.cuda.get_device_name(0)}")
-# print(f"  VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
-# print(f"  CUDA Version: {torch.version.cuda}")
-# print()
+print(f"✓ GPU Available: {torch.cuda.get_device_name(0)}")
+print(f"  VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+print(f"  CUDA Version: {torch.version.cuda}")
+print()
 
 # ============================================
 # HuggingFace Authentication
@@ -99,6 +97,7 @@ print("Loading model...")
 start_time = time.time()
 
 MODEL = args.path
+is_contextual = args.contextual == "True"
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 tokenizer.pad_token = tokenizer.eos_token
 print("  ✓ Tokenizer loaded")
@@ -106,8 +105,7 @@ print("  ✓ Tokenizer loaded")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL,
     dtype=torch.float16,
-)
-# ).to('cuda:0')
+).to('cuda:0')
 
 print(f"  ✓ Model loaded in {time.time() - start_time:.1f}s")
 print(f"  Device: {model.device}")
@@ -154,16 +152,16 @@ def generate_response(messages, max_tokens=512):
 # Checkpoint Functions
 # ============================================
 
-def load_progress():
+def load_progress(progress_file_path):
     """Load progress"""
-    if PROGRESS_FILE.exists():
-        with open(PROGRESS_FILE, 'r') as f:
+    if progress_file_path.exists():
+        with open(progress_file_path, 'r') as f:
             return json.load(f)
     return {"completed": 0, "timestamp": str(datetime.now())}
 
-def save_progress(completed, total):
+def save_progress(progress_file_path, completed, total):
     """Save progress"""
-    with open(PROGRESS_FILE, 'w') as f:
+    with open(progress_file_path, 'w') as f:
         json.dump({
             "completed": completed,
             "total": total,
@@ -172,17 +170,17 @@ def save_progress(completed, total):
         }, f, indent=2)
     os.sync()
 
-def save_example(example_data):
+def save_example(checkpoint_file_path, example_data):
     """Append example to checkpoint file"""
-    with open(CHECKPOINT_FILE, 'a') as f:
+    with open(checkpoint_file_path, 'a') as f:
         json.dump(example_data, f)
         f.write('\n')
         f.flush()
         os.fsync(f.fileno())
 
-def log_error(index, prompt, error):
+def log_error(error_log_path, index, prompt, error):
     """Log errors"""
-    with open(ERROR_LOG, 'a') as f:
+    with open(error_log_path, 'a') as f:
         f.write(f"[{datetime.now()}] {index}: {prompt[:50]}... | {str(error)}\n")
         f.flush()
 
@@ -245,7 +243,8 @@ print()
 # Main Generation Loop
 # ============================================
 
-progress = load_progress()
+progress = load_progress(PROGRESS_FILE)
+print(f"Progress from: {PROGRESS_FILE}: ", progress)
 start_idx = progress["completed"]
 
 print("="*80)
@@ -266,20 +265,20 @@ for i in range(start_idx, len(harmful_prompts)):
         iter_start = time.time()
         print(f"[{i+1}/{len(harmful_prompts)}] Processing...", end=' ', flush=True)
         
-        # Select random principle
-
+        # Select principle according to strategy
         print("Picking principles contextually: ", args.contextual)
-        if not args.contextual:
-            principle, revision = random.choice(principles)
-        
+        if is_contextual:
+            selected_list = selector.select_contextual(prompt, top_k=1)
+            top_result = selected_list[0]
+            principle, revision = top_result['principle']
+            similarity = top_result['similarity']
+            print(f"Contextual principle: {principle}...") 
+            print(f"Similarity: {similarity:.3f}")
+    
         else:
-            contextual = selector.select_contextual(prompt, top_k=1)
-            principle, revision = contextual[0][0], contextual[0][1]
-            print(f"Contextual principle: {contextual[0]['critique']}...")
-            print(f"Similarity: {contextual[0]['similarity']:.3f}")
+              principle, revision = random.choice(principles)
         
         revision += " Do not provide meta-commentary; respond as the assistant would."
-        set_trace()
         
         # Step 1: Initial response
         initial_response = generate_response([{"role": "user", "content": prompt}])
@@ -313,11 +312,11 @@ for i in range(start_idx, len(harmful_prompts)):
             "timestamp": str(datetime.now())
         }
         
-        save_example(example_data)
+        save_example(CHECKPOINT_FILE, example_data)
         
         # Update progress periodically
         if (i + 1) % 10 == 0:
-            save_progress(i + 1, len(harmful_prompts))
+            save_progress(PROGRESS_FILE, i + 1, len(harmful_prompts))
         
         iter_time = time.time() - iter_start
         successful += 1
@@ -331,11 +330,11 @@ for i in range(start_idx, len(harmful_prompts)):
     except Exception as e:
         failed += 1
         print(f"✗ Error: {e}")
-        log_error(i, prompt, e)
+        log_error(ERROR_LOG, i, prompt, e)
         continue
 
 # Final save
-save_progress(len(harmful_prompts), len(harmful_prompts))
+save_progress(PROGRESS_FILE, i + 1, len(harmful_prompts))
 
 # ============================================
 # Summary
