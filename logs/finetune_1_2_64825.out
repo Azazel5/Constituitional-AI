@@ -1,0 +1,47 @@
+================================
+Language Model Fine-tuning
+Job ID: 64825
+Model: qwen
+Selection: random
+Data File: Data_Processing/CAI/data/constitutional_training_data_qwen.jsonl
+Node: pax003
+Started: Sat Nov  8 05:53:45 PM EST 2025
+================================
+
+Working Directory set to: /cluster/home/supadh03/CAI/Constituitional-AI
+Output directory is: models/finetuned
+================================================================================
+Constitutional AI Fine-Tuning
+================================================================================
+Base model: Qwen/Qwen2.5-3B-Instruct
+Selection method: random
+Data file: Data_Processing/CAI/data/constitutional_training_data_qwen.jsonl
+Output directory: models/finetuned/qwen_random
+Validation size: 79
+
+Loading training data...
+Loaded 979 examples
+Loading existing split from models/finetuned/train_val_split.json...
+✓ Using seed 42
+Train: 900 examples
+Validation: 79 examples
+✓ Validation prompts verified consistent across datasets
+
+Preparing training data...
+✓ Training dataset: 900 examples
+✓ Validation dataset: 79 examples
+
+Loading Qwen/Qwen2.5-3B-Instruct...
+✓ CUDA available
+✓ GPU: NVIDIA A100-PCIE-40GB
+
+✓ Model loaded: cuda:0
+✓ Parameters: 3.09B
+
+Tokenizing data...
+✓ Tokenization complete
+
+================================================================================
+Starting Training
+================================================================================
+
