@@ -22,6 +22,41 @@ from transformers import TrainerCallback, TrainerState, TrainerControl
 
 
 
+class SaveBestModelCallback(TrainerCallback):
+    """
+    A callback that saves *only* the model weights (not the full 41GB checkpoint)
+    when a new best eval_loss is found. We pass the model and tokenizer
+    to it when we create it.
+    """
+    def __init__(self, model, tokenizer):
+        super().__init__()
+        self.model = model
+        self.tokenizer = tokenizer
+        self.best_loss = float('inf')
+
+    def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """
+        This event is called after an evaluation.
+        We use it to check for a new best model.
+        """
+        if 'eval_loss' not in state.log_history[-1]:
+            return
+
+        current_loss = state.log_history[-1]['eval_loss']
+        
+        if current_loss < self.best_loss:
+            self.best_loss = current_loss
+            print(f"--- New best model! Step: {state.global_step}, Eval loss: {current_loss} ---")
+            print(f"--- Saving new best model to {args.output_dir} ---")
+            
+            # Now we use the references we stored
+            self.model.save_pretrained(args.output_dir)
+            self.tokenizer.save_pretrained(args.output_dir)
+            
+            print("--- Save complete. ---")
+            
+
+
 # ============================================
 # Configuration
 # ============================================
@@ -44,6 +79,8 @@ def parse_args():
                         help='Number of training epochs')
     parser.add_argument('--batch-size', type=int, default=4,
                         help='Training batch size')
+    parser.add_argument('--learning-rate', type=float, default=1e-6,
+                        help='Training batch size')
     return parser.parse_args()
 
 
@@ -51,7 +88,9 @@ def parse_args():
 args = parse_args()
 
 SEED = 42
-LEARNING_RATE = 1e-6 if args.model == "qwen" else 5e-7
+LEARNING_RATE = args.learning_rate
+    
+print(f"LR set to {LEARNING_RATE}")
 
 # Model mapping
 MODEL_NAMES = {
@@ -213,7 +252,7 @@ print()
 training_args = TrainingArguments(
     output_dir=str(output_dir),
     num_train_epochs=args.epochs,
-   per_device_train_batch_size=1,  
+    per_device_train_batch_size=1,  
     per_device_eval_batch_size=1,  
     learning_rate=LEARNING_RATE,
     warmup_steps=20,
@@ -236,12 +275,16 @@ data_collator = DataCollatorForLanguageModeling(
     mlm=False
 )
 
+best_model_callback = SaveBestModelCallback(model=model, tokenizer=tokenizer)
+
+
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=tokenized_train,
     eval_dataset=tokenized_val,
-    data_collator=data_collator
+    data_collator=data_collator,
+    callbacks=[best_model_callback]  
 )
 
 # ============================================
@@ -265,9 +308,6 @@ print()
 # Save Model
 # ============================================
 
-print(f"Saving model to {output_dir}...")
-trainer.save_model(str(output_dir))
-tokenizer.save_pretrained(str(output_dir))
 
 final_train_summary = trainer.state.log_history[-1]
 best_eval_loss = trainer.state.best_metric
@@ -281,7 +321,7 @@ info = {
     'epochs': args.epochs,
     'learning_rate': LEARNING_RATE,
     'final_train_loss': final_train_summary.get('train_loss'), 
-    'final_eval_loss': best_eval_loss 
+    'best_eval_loss': best_eval_loss 
 }
 
 with open(output_dir / 'training_info.json', 'w') as f:

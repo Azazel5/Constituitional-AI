@@ -37,6 +37,8 @@ python Data_Processing/finetune.py \
     --model "$1" \
     --selection "$2" \
     --data-file "$3" \
+    --epochs "$4" \
+    --learning-rate "$5" \
 
 echo ""
 echo "================================"
