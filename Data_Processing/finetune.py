@@ -18,6 +18,10 @@ from datasets import Dataset
 from pathlib import Path
 import numpy as np
 
+from transformers import TrainerCallback, TrainerState, TrainerControl
+
+
+
 # ============================================
 # Configuration
 # ============================================
@@ -42,8 +46,12 @@ def parse_args():
                         help='Training batch size')
     return parser.parse_args()
 
+
+
 args = parse_args()
+
 SEED = 42
+LEARNING_RATE = 1e-6 if args.model == "qwen" else 5e-7
 
 # Model mapping
 MODEL_NAMES = {
@@ -207,24 +215,25 @@ training_args = TrainingArguments(
     num_train_epochs=args.epochs,
    per_device_train_batch_size=1,  
     per_device_eval_batch_size=1,  
-    learning_rate=2e-5,
-    warmup_steps=100,
+    learning_rate=LEARNING_RATE,
+    warmup_steps=20,
     logging_steps=50,
-    eval_steps=200,
-    save_steps=200,
+    eval_steps=50,
     eval_strategy='steps',
-    save_strategy='steps',
-    load_best_model_at_end=True,
+    save_strategy='no',
+    save_steps=50,             
+    save_total_limit=1,   
+    load_best_model_at_end=False,
     metric_for_best_model='eval_loss',
     bf16=True,  # Use mixed precision
-    gradient_accumulation_steps=16,  # Increase from 2 to 16 (keeps effective batch size = 16)
-    gradient_checkpointing=True,  # Add this - trades speed for memory
+    gradient_accumulation_steps=16,  
+    gradient_checkpointing=True,  
     report_to='none'  # Disable wandb
 )
 
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
-    mlm=False  # Causal LM, not masked LM
+    mlm=False
 )
 
 trainer = Trainer(
@@ -260,6 +269,9 @@ print(f"Saving model to {output_dir}...")
 trainer.save_model(str(output_dir))
 tokenizer.save_pretrained(str(output_dir))
 
+final_train_summary = trainer.state.log_history[-1]
+best_eval_loss = trainer.state.best_metric
+
 # Save training info
 info = {
     'base_model': base_model_name,
@@ -267,9 +279,9 @@ info = {
     'train_examples': len(train_examples),
     'val_examples': len(val_examples),
     'epochs': args.epochs,
-    'learning_rate': 2e-5,
-    'final_train_loss': trainer.state.log_history[-2]['loss'],
-    'final_eval_loss': trainer.state.log_history[-1]['eval_loss']
+    'learning_rate': LEARNING_RATE,
+    'final_train_loss': final_train_summary.get('train_loss'), 
+    'final_eval_loss': best_eval_loss 
 }
 
 with open(output_dir / 'training_info.json', 'w') as f:
