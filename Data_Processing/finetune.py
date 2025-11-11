@@ -1,193 +1,295 @@
-# This file will to changed to use to finetune base language models using a response->critique->revise pipeline on red-team data
+#!/usr/bin/env python3
+"""
+Fine-tune models on Constitutional AI data
+Usage: python finetune.py --model qwen --selection random --data-file CAI/data/constitutional_training_data.jsonl
+"""
 
+import argparse
 import json
+import torch
 from transformers import (
-    AutoModelForCausalLM, 
+    AutoModelForCausalLM,
     AutoTokenizer,
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling
 )
-
 from datasets import Dataset
-import torch
+from pathlib import Path
+import numpy as np
+
+from transformers import TrainerCallback, TrainerState, TrainerControl
 
 
-def load_training_data(data_file):
-    """Load and deduplicate training data"""
 
-    data = []
-    seen_prompts = set()
-    
-    with open(data_file, 'r') as f:
-        for line in f:
-            item = json.loads(line)
-            if item['prompt'] not in seen_prompts:
-                seen_prompts.add(item['prompt'])
-                data.append({
-                    'prompt': item['prompt'],
-                    'response': item['revision']
-                })
-    
-    return data
+# ============================================
+# Configuration
+# ============================================
 
-
-def prepare_dataset(data, tokenizer):
-    """Format data for instruction tuning"""
-    
-    def format_example(example):
-        # Clean the response text first
-        response = clean_text(example['response'])
-        prompt = clean_text(example['prompt'])
-        
-        # Simple format: prompt then response
-        # Model learns to map prompts to safe responses
-        text = f"{prompt}\n\n{response}"
-        return {'text': text}
-    
-    def clean_text(text):
-        """Remove unicode artifacts and meta-commentary"""
-        # Remove common unicode issues
-        text = text.replace('\u2019', "'")  # Right single quote
-        text = text.replace('\u201c', '"')  # Left double quote
-        text = text.replace('\u201d', '"')  # Right double quote
-        text = text.replace('\u2013', '-')  # En dash
-        text = text.replace('\u2014', '--') # Em dash
-        text = text.replace('\xa0', ' ')    # Non-breaking space
-        
-        # Remove meta-commentary patterns
-        meta_phrases = [
-            "Certainly! Here's",
-            "Sure! Here's", 
-            "Here's a",
-            "Here's the",
-            "Let me know if",
-            "Want more",
-            "Would you like"
-        ]
-        
-        for phrase in meta_phrases:
-            if text.startswith(phrase):
-                # Find first newline after phrase and start from there
-                idx = text.find('\n')
-                if idx != -1:
-                    text = text[idx:].strip()
-        
-        # Remove trailing meta-commentary
-        endings = [
-            "Let me know",
-            "Would you like",
-            "Want more",
-            "Need help"
-        ]
-        for ending in endings:
-            idx = text.lower().rfind(ending.lower())
-            if idx != -1:
-                text = text[:idx].strip()
-        
-        return text
-    
-    # Convert to Dataset
-    dataset = Dataset.from_list(data)
-    dataset = dataset.map(format_example)
-    
-    # Tokenize
-    def tokenize_function(examples):
-        return tokenizer(
-            examples['text'],
-            truncation=True,
-            max_length=2048,  # Adjust based on your data
-            # NO padding here - DataCollator handles it dynamically
-        )
-    
-    tokenized = dataset.map(
-        tokenize_function,
-        batched=True,
-        remove_columns=dataset.column_names
-    )
-    
-    return tokenized
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model', type=str, required=True,
+                        choices=['qwen', 'mistral'],
+                        help='Base model to fine-tune')
+    parser.add_argument('--selection', type=str, required=True,
+                        choices=['random', 'contextual'],
+                        help='Which dataset (random or contextual selection)')
+    parser.add_argument('--data-file', type=str, required=True,
+                        help='Path to training data JSONL')
+    parser.add_argument('--output-dir', type=str, default='models/finetuned',
+                        help='Where to save fine-tuned model')
+    parser.add_argument('--val-size', type=int, default=79,
+                        help='Number of examples for validation')
+    parser.add_argument('--epochs', type=int, default=3,
+                        help='Number of training epochs')
+    parser.add_argument('--batch-size', type=int, default=4,
+                        help='Training batch size')
+    return parser.parse_args()
 
 
-def train_constitutional_model(
-    data_file,
-    model_name="deepseek-ai/DeepSeek-V3-0324",
-    output_dir=".",
-    num_epochs=3,
-    batch_size=4
-):
-    """Fine-tune model on constitutional AI data"""
+
+args = parse_args()
+
+SEED = 42
+LEARNING_RATE = 1e-6 if args.model == "qwen" else 5e-7
+
+# Model mapping
+MODEL_NAMES = {
+    'qwen': 'Qwen/Qwen2.5-3B-Instruct',
+    'mistral': 'mistralai/Mistral-7B-Instruct-v0.3'
+}
+
+base_model_name = MODEL_NAMES[args.model]
+SPLIT_DIR =  Path(args.output_dir)
+print(f"Output directory is: {SPLIT_DIR}")
+output_dir = SPLIT_DIR / f"{args.model}_{args.selection}"
+output_dir.mkdir(parents=True, exist_ok=True)
+
+print("="*80)
+print(f"Constitutional AI Fine-Tuning")
+print("="*80)
+print(f"Base model: {base_model_name}")
+print(f"Selection method: {args.selection}")
+print(f"Data file: {args.data_file}")
+print(f"Output directory: {output_dir}")
+print(f"Validation size: {args.val_size}")
+print()
+
+# ============================================
+# Load Data
+# ============================================
+
+print("Loading training data...")
+examples = []
+with open(args.data_file, 'r') as f:
+    for line in f:
+        examples.append(json.loads(line))
+
+print(f"Loaded {len(examples)} examples")
+
+# Split train/val
+split_file = SPLIT_DIR / 'train_val_split.json'
+
+# Use existing split (ensures consistency across all 4 models)
+print(f"Loading existing split from {split_file}...")
+with open(split_file, 'r') as f:
+    split_info = json.load(f)
     
-    print("Loading data...")
-    data = load_training_data(data_file)
-    print(f"Loaded {len(data)} training examples")
+    train_indices = split_info['train_indices']
+    val_indices = split_info['val_indices']
+    print(f"✓ Using seed {split_info['seed']}")
     
-    # Split train/val
-    split_idx = int(len(data) * 0.9)
-    train_data = data[:split_idx]
-    val_data = data[split_idx:]
-    print(f"Train: {len(train_data)}, Val: {len(val_data)}")
-    
-    # Load model and tokenizer
-    print("Loading model...")
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.float16,
-        device_map="auto"
-    )
-    
-    # Prepare datasets
-    train_dataset = prepare_dataset(train_data, tokenizer)
-    val_dataset = prepare_dataset(val_data, tokenizer)
-    
-    # Training arguments
-    training_args = TrainingArguments(
-        output_dir=output_dir,
-        num_train_epochs=num_epochs,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
-        warmup_steps=100,
-        logging_steps=10,
-        eval_strategy="steps",
-        eval_steps=100,
-        save_steps=200,
-        learning_rate=2e-5,
-        fp16=True,
-        gradient_accumulation_steps=4,
-        save_total_limit=3,
-        load_best_model_at_end=True,
-    )
-    
-    # Data collator
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False
-    )
-    
-    # Trainer
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=val_dataset,
-        data_collator=data_collator,
-    )
-    
-    # Train!
-    print("Starting training...")
-    trainer.train()
-    
-    # Save final model
-    trainer.save_model(output_dir)
-    tokenizer.save_pretrained(output_dir)
-    print(f"Model saved to {output_dir}")
+
+# Apply split
+train_examples = [examples[i] for i in train_indices]
+val_examples = [examples[i] for i in val_indices]
+
+print(f"Train: {len(train_examples)} examples")
+print(f"Validation: {len(val_examples)} examples")
 
 
-if __name__ == "__main__":
-    train_constitutional_model(
-        data_file="training_data/constitutional_training_data.jsonl",
-        output_dir="."
+val_prompts_expected = set(split_info['val_prompts'])
+val_prompts_actual = set(ex['prompt'] for ex in val_examples)
+if val_prompts_expected == val_prompts_actual:
+    print("✓ Validation prompts verified consistent across datasets")
+else:
+    print("⚠️  WARNING: Validation prompt mismatch detected!")
+
+
+print()
+
+# ============================================
+# Prepare Training Data
+# ============================================
+
+print("Preparing training data...")
+
+def format_example(example):
+    """
+    Format: prompt -> revised_response
+    We train the model to directly produce the safe, revised response
+    """
+    prompt = example['prompt']
+    revision = example['revision']
+    
+    # Format as instruction-following
+    text = f"Human: {prompt}\n\nAssistant: {revision}"
+    return text
+
+train_texts = [format_example(ex) for ex in train_examples]
+val_texts = [format_example(ex) for ex in val_examples]
+
+# Create HuggingFace datasets
+train_dataset = Dataset.from_dict({'text': train_texts})
+val_dataset = Dataset.from_dict({'text': val_texts})
+
+print(f"✓ Training dataset: {len(train_dataset)} examples")
+print(f"✓ Validation dataset: {len(val_dataset)} examples")
+print()
+
+
+# ============================================
+# Load Model & Tokenizer
+# ============================================
+
+print(f"Loading {base_model_name}...")
+
+if not torch.cuda.is_available():
+    raise RuntimeError("CUDA not available! This script requires GPU.")
+    
+    
+print(f"✓ CUDA available")
+print(f"✓ GPU: {torch.cuda.get_device_name(0)}")
+print()
+
+
+tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(
+    base_model_name,
+    dtype=torch.float16,
+)
+
+model = model.to("cuda:0")
+
+print(f"✓ Model loaded: {model.device}")
+print(f"✓ Parameters: {sum(p.numel() for p in model.parameters()) / 1e9:.2f}B")
+print()
+
+# ============================================
+# Tokenize Data
+# ============================================
+
+print("Tokenizing data...")
+
+def tokenize_function(examples):
+    return tokenizer(
+        examples['text'],
+        truncation=True,
+        max_length=512,
+        padding='max_length'
     )
 
+tokenized_train = train_dataset.map(
+    tokenize_function,
+    batched=True,
+    remove_columns=['text']
+)
 
+tokenized_val = val_dataset.map(
+    tokenize_function,
+    batched=True,
+    remove_columns=['text']
+)
+
+print("✓ Tokenization complete")
+print()
+
+# ============================================
+# Training Configuration
+# ============================================
+
+training_args = TrainingArguments(
+    output_dir=str(output_dir),
+    num_train_epochs=args.epochs,
+   per_device_train_batch_size=1,  
+    per_device_eval_batch_size=1,  
+    learning_rate=LEARNING_RATE,
+    warmup_steps=20,
+    logging_steps=50,
+    eval_steps=50,
+    eval_strategy='steps',
+    save_strategy='no',
+    save_steps=50,             
+    save_total_limit=1,   
+    load_best_model_at_end=False,
+    metric_for_best_model='eval_loss',
+    bf16=True,  # Use mixed precision
+    gradient_accumulation_steps=16,  
+    gradient_checkpointing=True,  
+    report_to='none'  # Disable wandb
+)
+
+data_collator = DataCollatorForLanguageModeling(
+    tokenizer=tokenizer,
+    mlm=False
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_train,
+    eval_dataset=tokenized_val,
+    data_collator=data_collator
+)
+
+# ============================================
+# Train
+# ============================================
+
+print("="*80)
+print("Starting Training")
+print("="*80)
+print()
+
+trainer.train()
+
+print()
+print("="*80)
+print("Training Complete!")
+print("="*80)
+print()
+
+# ============================================
+# Save Model
+# ============================================
+
+print(f"Saving model to {output_dir}...")
+trainer.save_model(str(output_dir))
+tokenizer.save_pretrained(str(output_dir))
+
+final_train_summary = trainer.state.log_history[-1]
+best_eval_loss = trainer.state.best_metric
+
+# Save training info
+info = {
+    'base_model': base_model_name,
+    'selection_method': args.selection,
+    'train_examples': len(train_examples),
+    'val_examples': len(val_examples),
+    'epochs': args.epochs,
+    'learning_rate': LEARNING_RATE,
+    'final_train_loss': final_train_summary.get('train_loss'), 
+    'final_eval_loss': best_eval_loss 
+}
+
+with open(output_dir / 'training_info.json', 'w') as f:
+    json.dump(info, f, indent=2)
+
+print(f"✓ Model saved to {output_dir}")
+print(f"✓ Training info saved")
+print()
+print("="*80)
+print("Fine-tuning Complete!")
+print("="*80)
