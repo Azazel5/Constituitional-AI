@@ -1,0 +1,87 @@
+================================
+Language Model Fine-tuning
+Job ID: 81136
+Model: mistral
+Selection: contextual
+Data File: Data_Processing/CAI/data/constitutional_training_data_mistral-contextual-True.jsonl
+Node: pax007
+Started: Tue Nov 11 05:56:50 PM EST 2025
+================================
+
+Working Directory set to: /cluster/home/supadh03/CAI/Constituitional-AI
+LR set to 3e-07
+Output directory is: models/finetuned
+================================================================================
+Constitutional AI Fine-Tuning
+================================================================================
+Base model: mistralai/Mistral-7B-Instruct-v0.3
+Selection method: contextual
+Data file: Data_Processing/CAI/data/constitutional_training_data_mistral-contextual-True.jsonl
+Output directory: models/finetuned/mistral_contextual
+Validation size: 79
+
+Loading training data...
+Loaded 979 examples
+Loading existing split from models/finetuned/train_val_split.json...
+✓ Using seed 42
+Train: 900 examples
+Validation: 79 examples
+✓ Validation prompts verified consistent across datasets
+
+Preparing training data...
+✓ Training dataset: 900 examples
+✓ Validation dataset: 79 examples
+
+Loading mistralai/Mistral-7B-Instruct-v0.3...
+✓ CUDA available
+✓ GPU: NVIDIA A100 80GB PCIe
+
+✓ Model loaded: cuda:0
+✓ Parameters: 7.25B
+
+Tokenizing data...
+✓ Tokenization complete
+
+================================================================================
+Starting Training
+================================================================================
+
+{'loss': 1.5008, 'grad_norm': 329.75, 'learning_rate': 2.770448548812665e-07, 'epoch': 0.89}
+{'eval_loss': 1.9146068096160889, 'eval_runtime': 7.4102, 'eval_samples_per_second': 10.661, 'eval_steps_per_second': 10.661, 'epoch': 0.89}
+--- New best model! Step: 50, Eval loss: 1.9146068096160889 ---
+--- Saving new best model to models/finetuned/mistral_contextual ---
+--- Save complete. ---
+{'loss': 1.7241, 'grad_norm': 46.53125, 'learning_rate': 2.3746701846965696e-07, 'epoch': 1.76}
+{'eval_loss': 1.6288098096847534, 'eval_runtime': 7.4117, 'eval_samples_per_second': 10.659, 'eval_steps_per_second': 10.659, 'epoch': 1.76}
+--- New best model! Step: 100, Eval loss: 1.6288098096847534 ---
+--- Saving new best model to models/finetuned/mistral_contextual ---
+--- Save complete. ---
+{'loss': 0.8326, 'grad_norm': 31.71875, 'learning_rate': 1.978891820580475e-07, 'epoch': 2.64}
+{'eval_loss': 1.6874455213546753, 'eval_runtime': 7.4196, 'eval_samples_per_second': 10.648, 'eval_steps_per_second': 10.648, 'epoch': 2.64}
+{'loss': 0.6254, 'grad_norm': 47.28125, 'learning_rate': 1.58311345646438e-07, 'epoch': 3.52}
+{'eval_loss': 1.621835470199585, 'eval_runtime': 7.4284, 'eval_samples_per_second': 10.635, 'eval_steps_per_second': 10.635, 'epoch': 3.52}
+--- New best model! Step: 200, Eval loss: 1.621835470199585 ---
+--- Saving new best model to models/finetuned/mistral_contextual ---
+--- Save complete. ---
+{'loss': 0.3834, 'grad_norm': 23.515625, 'learning_rate': 1.1873350923482848e-07, 'epoch': 4.39}
+{'eval_loss': 1.9880561828613281, 'eval_runtime': 7.4179, 'eval_samples_per_second': 10.65, 'eval_steps_per_second': 10.65, 'epoch': 4.39}
+{'loss': 0.2535, 'grad_norm': 8.7265625, 'learning_rate': 7.9155672823219e-08, 'epoch': 5.27}
+{'eval_loss': 1.8893307447433472, 'eval_runtime': 7.4027, 'eval_samples_per_second': 10.672, 'eval_steps_per_second': 10.672, 'epoch': 5.27}
+{'loss': 0.1404, 'grad_norm': 3.734375, 'learning_rate': 3.95778364116095e-08, 'epoch': 6.14}
+{'eval_loss': 1.846448540687561, 'eval_runtime': 7.407, 'eval_samples_per_second': 10.666, 'eval_steps_per_second': 10.666, 'epoch': 6.14}
+{'train_runtime': 2356.4784, 'train_samples_per_second': 2.673, 'train_steps_per_second': 0.169, 'train_loss': 0.6936300565724385, 'epoch': 7.0}
+
+================================================================================
+Training Complete!
+================================================================================
+
+✓ Model saved to models/finetuned/mistral_contextual
+✓ Training info saved
+
+================================================================================
+Fine-tuning Complete!
+================================================================================
+
+================================
+Job completed: Tue Nov 11 06:36:50 PM EST 2025
+================================

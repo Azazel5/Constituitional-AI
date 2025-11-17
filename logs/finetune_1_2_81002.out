@@ -1,0 +1,84 @@
+================================
+Language Model Fine-tuning
+Job ID: 81002
+Model: mistral
+Selection: random
+Data File: Data_Processing/CAI/data/constitutional_training_data_mistral.jsonl
+Node: pax007
+Started: Tue Nov 11 04:52:13 PM EST 2025
+================================
+
+Working Directory set to: /cluster/home/supadh03/CAI/Constituitional-AI
+LR set to 3e-07
+Output directory is: models/finetuned
+================================================================================
+Constitutional AI Fine-Tuning
+================================================================================
+Base model: mistralai/Mistral-7B-Instruct-v0.3
+Selection method: random
+Data file: Data_Processing/CAI/data/constitutional_training_data_mistral.jsonl
+Output directory: models/finetuned/mistral_random
+Validation size: 79
+
+Loading training data...
+Loaded 979 examples
+Loading existing split from models/finetuned/train_val_split.json...
+✓ Using seed 42
+Train: 900 examples
+Validation: 79 examples
+✓ Validation prompts verified consistent across datasets
+
+Preparing training data...
+✓ Training dataset: 900 examples
+✓ Validation dataset: 79 examples
+
+Loading mistralai/Mistral-7B-Instruct-v0.3...
+✓ CUDA available
+✓ GPU: NVIDIA A100 80GB PCIe
+
+✓ Model loaded: cuda:0
+✓ Parameters: 7.25B
+
+Tokenizing data...
+✓ Tokenization complete
+
+================================================================================
+Starting Training
+================================================================================
+
+{'loss': 1.7343, 'grad_norm': 480.5, 'learning_rate': 2.770448548812665e-07, 'epoch': 0.89}
+{'eval_loss': 2.3328962326049805, 'eval_runtime': 7.4217, 'eval_samples_per_second': 10.644, 'eval_steps_per_second': 10.644, 'epoch': 0.89}
+--- New best model! Step: 50, Eval loss: 2.3328962326049805 ---
+--- Saving new best model to models/finetuned/mistral_random ---
+--- Save complete. ---
+{'loss': 1.3316, 'grad_norm': 78.9375, 'learning_rate': 2.3746701846965696e-07, 'epoch': 1.76}
+{'eval_loss': 1.5489803552627563, 'eval_runtime': 7.4238, 'eval_samples_per_second': 10.641, 'eval_steps_per_second': 10.641, 'epoch': 1.76}
+--- New best model! Step: 100, Eval loss: 1.5489803552627563 ---
+--- Saving new best model to models/finetuned/mistral_random ---
+--- Save complete. ---
+{'loss': 0.772, 'grad_norm': 38.59375, 'learning_rate': 1.978891820580475e-07, 'epoch': 2.64}
+{'eval_loss': 1.5688633918762207, 'eval_runtime': 7.4006, 'eval_samples_per_second': 10.675, 'eval_steps_per_second': 10.675, 'epoch': 2.64}
+{'loss': 0.5028, 'grad_norm': 20.296875, 'learning_rate': 1.58311345646438e-07, 'epoch': 3.52}
+{'eval_loss': 1.6409912109375, 'eval_runtime': 7.4282, 'eval_samples_per_second': 10.635, 'eval_steps_per_second': 10.635, 'epoch': 3.52}
+{'loss': 0.3141, 'grad_norm': 10.125, 'learning_rate': 1.1873350923482848e-07, 'epoch': 4.39}
+{'eval_loss': 1.7945444583892822, 'eval_runtime': 7.4264, 'eval_samples_per_second': 10.638, 'eval_steps_per_second': 10.638, 'epoch': 4.39}
+{'loss': 0.1974, 'grad_norm': 8.3984375, 'learning_rate': 7.9155672823219e-08, 'epoch': 5.27}
+{'eval_loss': 1.8784958124160767, 'eval_runtime': 7.3991, 'eval_samples_per_second': 10.677, 'eval_steps_per_second': 10.677, 'epoch': 5.27}
+{'loss': 0.1259, 'grad_norm': 2.931640625, 'learning_rate': 3.95778364116095e-08, 'epoch': 6.14}
+{'eval_loss': 1.8885536193847656, 'eval_runtime': 7.4174, 'eval_samples_per_second': 10.651, 'eval_steps_per_second': 10.651, 'epoch': 6.14}
+{'train_runtime': 2335.1762, 'train_samples_per_second': 2.698, 'train_steps_per_second': 0.171, 'train_loss': 0.6319206663241661, 'epoch': 7.0}
+
+================================================================================
+Training Complete!
+================================================================================
+
+✓ Model saved to models/finetuned/mistral_random
+✓ Training info saved
+
+================================================================================
+Fine-tuning Complete!
+================================================================================
+
+================================
+Job completed: Tue Nov 11 05:31:47 PM EST 2025
+================================

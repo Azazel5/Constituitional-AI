@@ -1,0 +1,84 @@
+================================
+Language Model Fine-tuning
+Job ID: 79495
+Model: qwen
+Selection: random
+Data File: Data_Processing/CAI/data/constitutional_training_data_qwen.jsonl
+Node: pax007
+Started: Tue Nov 11 12:02:38 PM EST 2025
+================================
+
+Working Directory set to: /cluster/home/supadh03/CAI/Constituitional-AI
+LR set to 5e-07
+Output directory is: models/finetuned
+================================================================================
+Constitutional AI Fine-Tuning
+================================================================================
+Base model: Qwen/Qwen2.5-3B-Instruct
+Selection method: random
+Data file: Data_Processing/CAI/data/constitutional_training_data_qwen.jsonl
+Output directory: models/finetuned/qwen_random
+Validation size: 79
+
+Loading training data...
+Loaded 979 examples
+Loading existing split from models/finetuned/train_val_split.json...
+✓ Using seed 42
+Train: 900 examples
+Validation: 79 examples
+✓ Validation prompts verified consistent across datasets
+
+Preparing training data...
+✓ Training dataset: 900 examples
+✓ Validation dataset: 79 examples
+
+Loading Qwen/Qwen2.5-3B-Instruct...
+✓ CUDA available
+✓ GPU: NVIDIA A100 80GB PCIe
+
+✓ Model loaded: cuda:0
+✓ Parameters: 3.09B
+
+Tokenizing data...
+✓ Tokenization complete
+
+================================================================================
+Starting Training
+================================================================================
+
+{'loss': 1.4422, 'grad_norm': 4.8828125, 'learning_rate': 4.617414248021108e-07, 'epoch': 0.89}
+{'eval_loss': 1.4783611297607422, 'eval_runtime': 3.95, 'eval_samples_per_second': 20.0, 'eval_steps_per_second': 20.0, 'epoch': 0.89}
+--- New best model! Step: 50, Eval loss: 1.4783611297607422 ---
+--- Saving new best model to models/finetuned/qwen_random ---
+--- Save complete. ---
+{'loss': 1.0407, 'grad_norm': 4.01171875, 'learning_rate': 3.9577836411609493e-07, 'epoch': 1.76}
+{'eval_loss': 1.1623611450195312, 'eval_runtime': 3.9533, 'eval_samples_per_second': 19.983, 'eval_steps_per_second': 19.983, 'epoch': 1.76}
+--- New best model! Step: 100, Eval loss: 1.1623611450195312 ---
+--- Saving new best model to models/finetuned/qwen_random ---
+--- Save complete. ---
+{'loss': 0.7816, 'grad_norm': 6.64453125, 'learning_rate': 3.298153034300791e-07, 'epoch': 2.64}
+{'eval_loss': 1.2239899635314941, 'eval_runtime': 3.9533, 'eval_samples_per_second': 19.983, 'eval_steps_per_second': 19.983, 'epoch': 2.64}
+{'loss': 0.5175, 'grad_norm': 2.912109375, 'learning_rate': 2.6385224274406334e-07, 'epoch': 3.52}
+{'eval_loss': 1.3072680234909058, 'eval_runtime': 3.9587, 'eval_samples_per_second': 19.956, 'eval_steps_per_second': 19.956, 'epoch': 3.52}
+{'loss': 0.3007, 'grad_norm': 3.595703125, 'learning_rate': 1.9788918205804746e-07, 'epoch': 4.39}
+{'eval_loss': 1.8845257759094238, 'eval_runtime': 3.955, 'eval_samples_per_second': 19.975, 'eval_steps_per_second': 19.975, 'epoch': 4.39}
+{'loss': 0.1992, 'grad_norm': 1.2958984375, 'learning_rate': 1.3192612137203167e-07, 'epoch': 5.27}
+{'eval_loss': 1.74178946018219, 'eval_runtime': 3.9545, 'eval_samples_per_second': 19.977, 'eval_steps_per_second': 19.977, 'epoch': 5.27}
+{'loss': 0.1069, 'grad_norm': 1.1015625, 'learning_rate': 6.596306068601583e-08, 'epoch': 6.14}
+{'eval_loss': 1.928473711013794, 'eval_runtime': 3.9502, 'eval_samples_per_second': 19.999, 'eval_steps_per_second': 19.999, 'epoch': 6.14}
+{'train_runtime': 1209.5921, 'train_samples_per_second': 5.208, 'train_steps_per_second': 0.33, 'train_loss': 0.556900615978958, 'epoch': 7.0}
+
+================================================================================
+Training Complete!
+================================================================================
+
+✓ Model saved to models/finetuned/qwen_random
+✓ Training info saved
+
+================================================================================
+Fine-tuning Complete!
+================================================================================
+
+================================
+Job completed: Tue Nov 11 12:23:12 PM EST 2025
+================================
