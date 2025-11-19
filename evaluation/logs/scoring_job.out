@@ -1,0 +1,26 @@
+--- STARTING JOB ---
+Copying Ollama directory to scratch...
+Starting Ollama server...
+Waiting for Ollama to start...
+Ollama is up!
+Pulling llama3...
+Starting Python scoring...
+Scanning for response CSVs in: /cluster/home/supadh03/CAI/Constituitional-AI/evaluation
+  Found file: /cluster/home/supadh03/CAI/Constituitional-AI/evaluation/mistral_contextual_responses.csv -> Model: mistral_contextual
+  Loaded 79 responses.
+  Found file: /cluster/home/supadh03/CAI/Constituitional-AI/evaluation/mistral_random_responses.csv -> Model: mistral_random
+  Loaded 79 responses.
+  Found file: /cluster/home/supadh03/CAI/Constituitional-AI/evaluation/qwen_contextual_responses.csv -> Model: qwen_contextual
+  Loaded 79 responses.
+  Found file: /cluster/home/supadh03/CAI/Constituitional-AI/evaluation/qwen_random_responses.csv -> Model: qwen_random
+  Loaded 79 responses.
+Successfully loaded 316 total responses for 4 models.
+
+--- Running Metric 1: Semantic Similarity (SFT Quality) ---
+  Loading gauge: all-MiniLM-L6-v2...
+  Similarity scoring complete.
+
+--- Running Metric 2: Helpfulness RM (Starling 7B) ---
+  Loading gauge: berkeley-nest/Starling-RM-7B-alpha (in 4-bit)...
+Cleaning up...
+Job finished successfully.
